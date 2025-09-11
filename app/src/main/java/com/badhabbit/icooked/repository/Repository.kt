@@ -7,6 +7,7 @@ import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.datalayer.extension
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import kotlinx.coroutines.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -15,6 +16,7 @@ import kotlinx.coroutines.withContext
 object Repository {
     private val gson = Gson()
     private val readwriteMutex = Mutex()
+    private var recipes = HashMap<String,Recipe>()
 
     private suspend fun readFile(context: Context, filename: String):String {
         readwriteMutex.withLock {
@@ -67,24 +69,24 @@ object Repository {
         writeFile(context, list, Cart.filename)
     }
 
-    suspend fun getRecipes(context: Context): List<String> {
-        Mutex().withLock {
-            lateinit var returnList: List<String>
-            withContext(Dispatchers.IO) {
-                try {
-                    val recipesList = context.fileList() ?: arrayOf()
-                    returnList = recipesList
-                        .filter { it.startsWith(extension) }
-                } catch (e: Exception) {
-                    Log.d("Debugging", "getRecipes: ${e.message}")
-                    returnList = listOf()
+    fun getRecipes(context: Context): List<String> {
+        var returnList = mutableListOf<String>()
+        try {
+            recipes.keys.forEach{returnList.add(it)}
+            Thread {
+                val recipesList = context.fileList() ?: arrayOf()
+                recipesList.filter { it.startsWith(extension) }.forEach{
+                    recipes[it.removePrefix(extension)] = getRecipe(context,it)
                 }
-            }
+            }.start()
             return returnList
+        } catch (e: Exception) {
+            Log.d("Debugging", "getRecipes: ${e.message}")
         }
+        return returnList
     }
 
-    suspend fun getRecipe(context: Context, filename: String): Recipe {
+    fun getRecipe(context: Context, filename: String): Recipe {
         Mutex().withLock {
             val sType = object : TypeToken<Recipe>() {}.type
             lateinit var returnRecipe: Recipe
