@@ -15,8 +15,6 @@ import kotlinx.coroutines.withContext
 object Repository {
     private val gson = Gson()
     private val readwriteMutex = Mutex()
-    //Comment thingy goes here
-    private val garbage = 0
 
     private suspend fun readFile(context: Context, filename: String):String {
         readwriteMutex.withLock {
