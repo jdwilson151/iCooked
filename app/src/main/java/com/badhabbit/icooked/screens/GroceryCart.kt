@@ -79,17 +79,12 @@ fun GroceryCart(
 ) {
     val context = LocalContext.current
     val itemList = remember { mutableStateListOf<CartItem>()}
-    //val itemListDone = remember { mutableStateListOf<CartItem>()}
-    //val itemListUndone = remember { mutableStateListOf<CartItem>()}
     val scope = rememberCoroutineScope()
 
     val onSave:(CartItem) -> Unit = { newItem: CartItem ->
         scope.launch {
             Cart.updateItem(context, newItem)
             Cart.getList(itemList)
-            //itemListDone.addAll(itemList.filter { it.done })
-            //itemListUndone.addAll(itemList.filter { !it.done })
-            //updateList(context,itemListDone, itemListUndone)
         }
     }
     val onCheckbox: (Boolean, CartItem) -> Unit = { checked: Boolean, item: CartItem ->
@@ -97,14 +92,12 @@ fun GroceryCart(
         scope.launch {
             Cart.updateItem(context, item)
             Cart.getList(itemList)
-            //updateList(context, itemListDone, itemListUndone)
         }
     }
     val onDelete: (item: CartItem) -> Unit = {
         scope.launch {
             Cart.deleteItem(context, it)
             Cart.getList(itemList)
-            //updateList(context, itemListDone, itemListUndone)
         }
     }
 
@@ -119,7 +112,6 @@ fun GroceryCart(
     LaunchedEffect(context) {
         Cart.updateCart(context)
         Cart.getList(itemList)
-        //updateList(context, itemListDone, itemListUndone)
     }
     onTitleChanged("- Grocery Cart")
 
@@ -508,8 +500,7 @@ fun ItemCard(
                                         },
                                     expanded = ddExpanded,
                                     onDismissRequest = {ddExpanded = !ddExpanded},
-                                    offset = DpOffset(position.dp,0.dp),
-                                    //modifier = Modifier.weight(3f)
+                                    offset = DpOffset(position.dp,0.dp)
                                 ) {
                                     RecipeBox.units.forEach {it ->
                                         DropdownMenuItem(

@@ -1,6 +1,5 @@
 package com.badhabbit.icooked.screens
 
-import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -47,7 +46,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -65,8 +63,6 @@ import com.badhabbit.icooked.datalayer.Ingredient
 import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.repository.Cart
 import com.badhabbit.icooked.repository.RecipeBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
@@ -94,7 +90,17 @@ fun RecipeView(
     }
 
     LaunchedEffect(context) {
-        fetchRecipe(context,filename,recipe, ingredients, instructions)
+        scope.launch {
+            try {
+                recipe.value = RecipeBox.getRecipe(context, filename)
+                ingredients.clear()
+                ingredients.addAll(recipe.value.ingredients)
+                instructions.clear()
+                instructions.addAll(recipe.value.instructions)
+            }catch(e:Exception) {
+                Log.d("Debugging"," fetchRecipe: ${e.message}")
+            }
+        }
     }
     onTitleChanged(recipe.value.name)
 
@@ -191,7 +197,9 @@ fun RecipeView(
                         )
                         IconButton(
                             onClick = {
-                                saveEdit(context, recipe.value)
+                                scope.launch{
+                                    RecipeBox.saveRecipe(context,recipe.value)
+                                }
                                 editmode.value = false
                             }
                         ) {
@@ -249,7 +257,9 @@ fun RecipeView(
                             IconButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    saveEdit(context, recipe.value)
+                                    scope.launch{
+                                        RecipeBox.saveRecipe(context,recipe.value)
+                                    }
                                     editmode.value = false
                                 }
                             ) {
@@ -294,7 +304,9 @@ fun RecipeView(
                                     recipe.value = recipe.value.copy(
                                         ingredients = (recipe.value.ingredients + Ingredient("New")).toMutableList()
                                     )
-                                    saveEdit(context, recipe.value)
+                                    scope.launch{
+                                        RecipeBox.saveRecipe(context,recipe.value)
+                                    }
                                     ingredients.clear()
                                     ingredients.addAll(recipe.value.ingredients)
                                 }
@@ -325,7 +337,9 @@ fun RecipeView(
                                     qty = newIngredient.qty,
                                     unit = newIngredient.unit
                                 )
-                            saveEdit(context, recipe.value)
+                            scope.launch{
+                                RecipeBox.saveRecipe(context,recipe.value)
+                            }
                             ingredients.clear()
                             ingredients.addAll(recipe.value.ingredients)
                         }
@@ -336,7 +350,9 @@ fun RecipeView(
                                 recipe.value.ingredients.filterIndexed { it, _ -> it != index }
                             recipe.value =
                                 recipe.value.copy(ingredients = tempList.toMutableList())
-                            saveEdit(context, recipe.value)
+                            scope.launch{
+                                RecipeBox.saveRecipe(context,recipe.value)
+                            }
                             ingredients.clear()
                             ingredients.addAll(recipe.value.ingredients)
                         }
@@ -381,7 +397,9 @@ fun RecipeView(
                         modifier = Modifier
                             .clickable {
                                 recipe.value = recipe.value.copy(instructions = (recipe.value.instructions + "New").toMutableList())
-                                saveEdit(context,recipe.value)
+                                scope.launch{
+                                    RecipeBox.saveRecipe(context,recipe.value)
+                                }
                                 instructions.clear()
                                 instructions.addAll(recipe.value.instructions)
                             },
@@ -401,7 +419,9 @@ fun RecipeView(
                     onSave = { newInstruction ->
                         scope.launch {
                             recipe.value.instructions[index] = newInstruction
-                            saveEdit(context, recipe.value)
+                            scope.launch{
+                                RecipeBox.saveRecipe(context,recipe.value)
+                            }
                             instructions.clear()
                             instructions.addAll(recipe.value.instructions)
                         }
@@ -412,7 +432,9 @@ fun RecipeView(
                                 recipe.value.instructions.filterIndexed { it, _ -> it != index }
                             recipe.value =
                                 recipe.value.copy(instructions = tempList.toMutableList())
-                            saveEdit(context, recipe.value)
+                            scope.launch{
+                                RecipeBox.saveRecipe(context,recipe.value)
+                            }
                             instructions.clear()
                             instructions.addAll(recipe.value.instructions)
                         }
@@ -473,7 +495,9 @@ fun RecipeView(
                             IconButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
-                                    saveEdit(context, recipe.value)
+                                    scope.launch{
+                                        RecipeBox.saveRecipe(context,recipe.value)
+                                    }
                                     editmode.value = false
                                 }
                             ) {
@@ -702,7 +726,6 @@ fun IngredientCard(
                     expanded = ddExpanded,
                     onDismissRequest = {ddExpanded = !ddExpanded},
                     offset = DpOffset(position.dp,0.dp)
-                    //modifier = Modifier.weight(3f)
                 ) {
                     RecipeBox.units.forEach {it ->
                         DropdownMenuItem(
@@ -744,35 +767,3 @@ fun IngredientCard(
     }
 }
 
-private fun saveEdit(
-    context: Context,
-    recipe: Recipe
-) {
-    CoroutineScope(Dispatchers.Main).launch {
-        try {
-            RecipeBox.saveRecipe(context, recipe)
-        }catch(e: Exception) {
-            Log.d("Debugging","saveEdit: ${e.message}")
-        }
-    }
-}
-
-private fun fetchRecipe(
-    context: Context,
-    filename: String,
-    recipe: MutableState<Recipe>,
-    ingredients: SnapshotStateList<Ingredient>,
-    instructions: SnapshotStateList<String>
-) {
-    CoroutineScope(Dispatchers.Main).launch {
-        try {
-            recipe.value = RecipeBox.getRecipe(context, filename)
-            ingredients.clear()
-            ingredients.addAll(recipe.value.ingredients)
-            instructions.clear()
-            instructions.addAll(recipe.value.instructions)
-        }catch(e:Exception) {
-            Log.d("Debugging"," fetchRecipe: ${e.message}")
-        }
-    }
-}
