@@ -66,6 +66,7 @@ import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.badhabbit.icooked.datalayer.CartItem
+import com.badhabbit.icooked.datalayer.DraggableItem
 import com.badhabbit.icooked.repository.Cart
 import com.badhabbit.icooked.repository.RecipeBox
 import kotlinx.coroutines.launch

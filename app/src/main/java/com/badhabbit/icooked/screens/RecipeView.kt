@@ -59,6 +59,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import com.badhabbit.icooked.datalayer.DraggableItem
 import com.badhabbit.icooked.datalayer.Ingredient
 import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.repository.Cart
@@ -330,19 +331,17 @@ fun RecipeView(
                         }
                     },
                     onSave = { newIngredient ->
-                        scope.launch {
-                            recipe.value.ingredients[index] =
-                                recipe.value.ingredients[index].copy(
-                                    name = newIngredient.name,
-                                    qty = newIngredient.qty,
-                                    unit = newIngredient.unit
-                                )
-                            scope.launch{
-                                RecipeBox.saveRecipe(context,recipe.value)
-                            }
-                            ingredients.clear()
-                            ingredients.addAll(recipe.value.ingredients)
+                        recipe.value.ingredients[index] =
+                            recipe.value.ingredients[index].copy(
+                                name = newIngredient.name,
+                                qty = newIngredient.qty,
+                                unit = newIngredient.unit
+                            )
+                        scope.launch{
+                            RecipeBox.saveRecipe(context,recipe.value)
                         }
+                        ingredients.clear()
+                        ingredients.addAll(recipe.value.ingredients)
                     },
                     onDelete = {
                         scope.launch {
