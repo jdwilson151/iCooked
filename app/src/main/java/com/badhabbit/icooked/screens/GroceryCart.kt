@@ -213,9 +213,6 @@ fun GroceryCart(
                 key = {_,it -> it.hashCode()},
                 contentType = { index, _ -> DraggableItem(index = index)}
             ) { index: Int, item: CartItem ->
-                /*scope.launch {
-                    item.index = index
-                }*/
                 ItemCard(
                     item = item,
                     show = remember { mutableStateOf(false)},
