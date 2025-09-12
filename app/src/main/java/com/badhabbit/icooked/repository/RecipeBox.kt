@@ -3,7 +3,6 @@ package com.badhabbit.icooked.repository
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.snapshots.SnapshotStateList
-import com.badhabbit.icooked.datalayer.CartItem
 import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.datalayer.extension
 import com.google.gson.Gson
@@ -33,12 +32,10 @@ object RecipeBox {
 
     suspend fun updateBox(context: Context) {
         readwriteMutex.withLock{
-            Thread {
-                val recipesList = context.fileList() ?: arrayOf()
-                recipesList.filter { it.startsWith(extension) }.forEach{
-                    recipes[it.removePrefix(extension)] = getRecipe(context,it)
-                }
-            }.start()
+            val recipesList = context.fileList() ?: arrayOf()
+            recipesList.filter { it.startsWith(extension) }.forEach{
+                recipes[it.removePrefix(extension)] = getRecipe(context,it)
+            }
         }
     }
 
@@ -86,7 +83,7 @@ object RecipeBox {
         }
     }
 
-    fun getRecipe(context: Context, filename: String): Recipe {
+    suspend fun getRecipe(context: Context, filename: String): Recipe {
         Mutex().withLock {
             val sType = object : TypeToken<Recipe>() {}.type
             lateinit var returnRecipe: Recipe
