@@ -70,7 +70,6 @@ import com.badhabbit.icooked.repository.Cart
 import com.badhabbit.icooked.repository.RecipeBox
 import kotlinx.coroutines.launch
 
-data class DraggableItem(val index: Int)
 
 @Composable
 fun GroceryCart(

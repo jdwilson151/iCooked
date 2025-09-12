@@ -2,6 +2,8 @@ package com.badhabbit.icooked.datalayer
 
 const val extension:String = "rcp_"
 
+data class DraggableItem(val index: Int)
+
 data class Recipe(
     var name: String = "",
     var filename: String = "$extension$name",
