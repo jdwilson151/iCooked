@@ -1,6 +1,5 @@
 package com.badhabbit.icooked.screens
 
-import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -52,7 +51,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -70,8 +68,6 @@ import androidx.compose.ui.zIndex
 import com.badhabbit.icooked.datalayer.CartItem
 import com.badhabbit.icooked.repository.Cart
 import com.badhabbit.icooked.repository.RecipeBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 data class DraggableItem(val index: Int)
@@ -82,27 +78,31 @@ fun GroceryCart(
     onTitleChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val itemListDone = remember { mutableStateListOf<CartItem>()}
-    val itemListUndone = remember { mutableStateListOf<CartItem>()}
+    val itemList = remember { mutableStateListOf<CartItem>()}
+    //val itemListDone = remember { mutableStateListOf<CartItem>()}
+    //val itemListUndone = remember { mutableStateListOf<CartItem>()}
     val scope = rememberCoroutineScope()
 
     val onSave:(CartItem) -> Unit = { newItem: CartItem ->
         scope.launch {
             Cart.updateItem(context, newItem)
-            updateList(context,itemListDone, itemListUndone)
+            Cart.getList(itemList)
+            //itemListDone.addAll(itemList.filter { it.done })
+            //itemListUndone.addAll(itemList.filter { !it.done })
+            //updateList(context,itemListDone, itemListUndone)
         }
     }
     val onCheckbox: (Boolean, CartItem) -> Unit = { checked: Boolean, item: CartItem ->
         item.done = checked
         scope.launch {
             Cart.updateItem(context, item)
-            updateList(context, itemListDone, itemListUndone)
+            //updateList(context, itemListDone, itemListUndone)
         }
     }
     val onDelete: (item: CartItem) -> Unit = {
         scope.launch {
             Cart.deleteItem(context, it)
-            updateList(context, itemListDone, itemListUndone)
+            //updateList(context, itemListDone, itemListUndone)
         }
     }
 
@@ -111,12 +111,12 @@ fun GroceryCart(
     var draggingItem: LazyListItemInfo? by remember { mutableStateOf(null)}
     var draggingItemIndex: Int? by remember { mutableStateOf(null)}
     val onMoveUndone = { fromIndex: Int, toIndex: Int ->
-        itemListUndone.apply { add(toIndex, removeAt(fromIndex)) }
+        itemList.apply { add(toIndex, removeAt(fromIndex)) }
     }
 
     LaunchedEffect(context) {
         Cart.updateCart(context)
-        updateList(context, itemListDone, itemListUndone)
+        //updateList(context, itemListDone, itemListUndone)
     }
     onTitleChanged("- Grocery Cart")
 
@@ -175,9 +175,9 @@ fun GroceryCart(
                             draggingItemIndex = null
                             delta = 0f
                             scope.launch {
-                                itemListUndone.forEach { item: CartItem ->
+                                itemList.filter { !it.done }.forEach { item: CartItem ->
                                     val index =
-                                        itemListUndone.indexOf(itemListUndone.first { it.id == item.id })
+                                        itemList.indexOf(itemList.first { it.id == item.id })
                                     val newitem = item.copy(index = index)
                                     Cart.updateItem(context, newitem)
                                 }
@@ -191,7 +191,7 @@ fun GroceryCart(
                 }
         ) {
             item {
-                if (itemListUndone.isNotEmpty()) {
+                if (itemList.filter { !it.done }.isNotEmpty()) {
                     Text(
                         text = "PENDING",
                         modifier = Modifier
@@ -201,7 +201,7 @@ fun GroceryCart(
                         style = MaterialTheme.typography.labelLarge
                     )
                 } else {
-                    if(itemListDone.isEmpty()) {
+                    if(itemList.filter { it.done }.isEmpty()) {
                         Text(
                             text = "No items to display",
                             modifier = Modifier
@@ -214,7 +214,7 @@ fun GroceryCart(
                 }
             }
             itemsIndexed(
-                items = itemListUndone,
+                items = itemList.filter { !it.done },
                 key = {_,it -> it.hashCode()},
                 contentType = { index, _ -> DraggableItem(index = index)}
             ) { index: Int, item: CartItem ->
@@ -227,7 +227,7 @@ fun GroceryCart(
                     editMode = remember { mutableStateOf(false)},
                     onSave = onSave,
                     onCheckbox = {checked:Boolean ->
-                        itemListUndone[index] = item.copy(done = checked)
+                        itemList[index] = item.copy(done = checked)
                         onCheckbox(checked,item)
                     },
                     onDelete = {onDelete(item)},
@@ -243,7 +243,7 @@ fun GroceryCart(
                 )
             }
             item {
-                if (itemListDone.isNotEmpty()) {
+                if (itemList.filter { it.done }.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -262,12 +262,12 @@ fun GroceryCart(
                                 .size(width = 60.dp, height = 40.dp)
                                 .padding(horizontal = 0.dp, vertical = 4.dp)
                                 .clickable(onClick = {
-                                    while (itemListDone.isNotEmpty()) {
-                                        val item = itemListDone[0]
+                                    while (itemList.filter { it.done }.isNotEmpty()) {
+                                        val item = itemList.filter { it.done }[0]
                                         scope.launch {
                                             Cart.deleteItem(context, item)
                                         }
-                                        itemListDone.remove(item)
+                                        itemList.remove(item)
                                     }
                                 }),
                             colors = CardDefaults.cardColors(
@@ -289,7 +289,7 @@ fun GroceryCart(
                 }
             }
             itemsIndexed(
-                itemListDone,
+                itemList.filter { it.done },
                 {_,it -> it.hashCode()}
             ) { index: Int, item: CartItem ->
                 ItemCard(
@@ -298,7 +298,7 @@ fun GroceryCart(
                     editMode = remember { mutableStateOf(false)},
                     onSave = onSave,
                     onCheckbox = {checked:Boolean ->
-                        itemListDone[index] = item.copy(done = checked)
+                        itemList[index] = item.copy(done = checked)
                         onCheckbox(checked, item)
                     },
                     onDelete = {onDelete(item)}
@@ -627,7 +627,7 @@ fun ItemCard(
     }
 }
 
-private fun updateList(
+/*private fun updateList(
     context: Context,
     itemListDone: SnapshotStateList<CartItem>,
     itemListUndone: SnapshotStateList<CartItem>
@@ -643,4 +643,4 @@ private fun updateList(
             Log.d("Debugging","updateList: ${e.message}")
         }
     }
-}
+}*/
