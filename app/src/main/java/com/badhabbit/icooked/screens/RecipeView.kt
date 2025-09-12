@@ -414,14 +414,12 @@ fun RecipeView(
                     instruction,
                     remember { mutableStateOf(false) },
                     onSave = { newInstruction ->
-                        scope.launch {
-                            recipe.value.instructions[index] = newInstruction
-                            scope.launch{
-                                RecipeBox.saveRecipe(context,recipe.value)
-                            }
-                            instructions.clear()
-                            instructions.addAll(recipe.value.instructions)
+                        recipe.value.instructions[index] = newInstruction
+                        scope.launch{
+                            RecipeBox.saveRecipe(context,recipe.value)
                         }
+                        instructions.clear()
+                        instructions.addAll(recipe.value.instructions)
                     },
                     onDelete = {
                         val tempList =
