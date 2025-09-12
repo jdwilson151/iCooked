@@ -1,7 +1,5 @@
 package com.badhabbit.icooked.screens
 
-import android.content.Context
-import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -26,15 +24,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.repository.RecipeBox
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 @Composable
@@ -45,8 +41,9 @@ fun RecipeList(
 ) {
     val context = LocalContext.current
     val recipeList = remember { mutableStateListOf<Recipe>()}
-    val onDeleteRecipe = { recipe: Recipe ->
-        CoroutineScope(Dispatchers.Main).launch {
+    val scope = rememberCoroutineScope()
+    val onDeleteRecipe: (Recipe) -> Unit = { recipe: Recipe ->
+        scope.launch {
             RecipeBox.deleteRecipe(context,recipe)
             RecipeBox.getRecipeList(context,recipeList)
         }
