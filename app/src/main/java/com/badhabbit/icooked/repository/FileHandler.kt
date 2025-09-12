@@ -31,10 +31,14 @@ object FileHandler {
 
     suspend fun writeFile(context: Context, file: Any, filename: String) {
         Mutex().withLock {
-            val data: String = gson.toJson(file)
-            Log.d("Debugging", "Writing: $data")
-            context.openFileOutput(filename, Context.MODE_PRIVATE).use {
-                it.write(data.toByteArray())
+            try {
+                val data: String = gson.toJson(file)
+                Log.d("Debugging", "Writing: $data")
+                context.openFileOutput(filename, Context.MODE_PRIVATE).use {
+                    it.write(data.toByteArray())
+                }
+            }catch(e:Exception) {
+                Log.d("debug","Writing Error: ${e.message} Filename: $filename")
             }
         }
     }

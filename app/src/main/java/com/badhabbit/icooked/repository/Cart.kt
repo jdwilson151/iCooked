@@ -33,13 +33,20 @@ object Cart {
         }
     }
 
-    private suspend fun saveCart(context: Context, list: List<CartItem>) {
-        FileHandler.writeFile(context, list, Cart.filename)
+    private suspend fun saveCart(context: Context) {
+        readwriteMutex.withLock {
+            FileHandler.writeFile(context, list, filename)
+        }
     }
 
     suspend fun getList(cartList:SnapshotStateList<CartItem>) {
         readwriteMutex.withLock {
             try {
+                var i = 0
+                list.forEach {
+                    it.index = i
+                    i++
+                }
                 cartList.clear()
                 cartList.addAll(list)
             }catch(e: Exception) {
@@ -57,9 +64,9 @@ object Cart {
                     rand = (1..10000).random()
                     checkList = list.filter { it.id == rand }
                 }
-                list.add(CartItem(rand, name))
+                list.add(CartItem(rand, name,index = list.size))
                 CoroutineScope(Dispatchers.IO).launch {
-                    saveCart(context, list)
+                    saveCart(context)
                 }
             } catch (e: Exception) {
                 Log.d("Debugging", "newItem: ${e.message}")
@@ -72,8 +79,9 @@ object Cart {
             try {
                 val index = list.indexOf(list.first { it.id == item.id })
                 list[index] = item
+                list.sortBy {it.index}
                 CoroutineScope(Dispatchers.IO).launch {
-                    saveCart(context, list)
+                    saveCart(context)
                 }
             } catch (e: Exception) {
                 Log.d("Debugging", "updateItem: ${e.message}")
@@ -86,8 +94,13 @@ object Cart {
             try {
                 val index = list.indexOf(list.first { it.id == item.id })
                 list.removeAt(index)
+                var i = 0
+                list.forEach {
+                    it.index = i
+                    i++
+                }
                 withContext(Dispatchers.IO) {
-                    saveCart(context, list)
+                    saveCart(context)
                 }
             } catch (e: Exception) {
                 Log.d("Debugging", "deleteItem: ${e.message}")
