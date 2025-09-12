@@ -14,11 +14,12 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 object Cart {
+    private val readwriteMutex = Mutex()
     val filename = "list_GroceryCart"
     private var list = mutableListOf<CartItem>()
 
     suspend fun updateCart(context: Context) {
-        Mutex().withLock {
+        readwriteMutex.withLock {
             try {
                 val sType = object : TypeToken<MutableList<CartItem>>() {}.type
                 val bufferText = FileHandler.readFile(context, filename)
@@ -37,7 +38,7 @@ object Cart {
     }
 
     suspend fun getList(cartList:SnapshotStateList<CartItem>) {
-        Mutex().withLock {
+        readwriteMutex.withLock {
             try {
                 cartList.clear()
                 cartList.addAll(list)
@@ -48,7 +49,7 @@ object Cart {
     }
 
     suspend fun newItem(context: Context, name:String) {
-        Mutex().withLock {
+        readwriteMutex.withLock {
             try {
                 var rand = (1..10000).random()
                 var checkList = list.filter { it.id == rand }
@@ -67,7 +68,7 @@ object Cart {
     }
 
     suspend fun updateItem(context: Context, item: CartItem) {
-        Mutex().withLock {
+        readwriteMutex.withLock {
             try {
                 val index = list.indexOf(list.first { it.id == item.id })
                 list[index] = item
@@ -81,7 +82,7 @@ object Cart {
     }
 
     suspend fun deleteItem(context: Context, item: CartItem) {
-        Mutex().withLock {
+        readwriteMutex.withLock {
             try {
                 val index = list.indexOf(list.first { it.id == item.id })
                 list.removeAt(index)
