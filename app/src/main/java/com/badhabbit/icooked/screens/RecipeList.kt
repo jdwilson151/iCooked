@@ -50,8 +50,11 @@ fun RecipeList(
     }
 
     LaunchedEffect(recipeList) {
-        RecipeBox.getRecipeList(context,recipeList)
-        //fetchList(context, recipeList)
+        scope.launch {
+            RecipeBox.updateBox(context)
+            RecipeBox.getRecipeList(context, recipeList)
+            //fetchList(context, recipeList)
+        }
     }
     onTitleChanged("- Recipes")
 
