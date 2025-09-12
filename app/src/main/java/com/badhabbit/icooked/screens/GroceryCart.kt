@@ -69,6 +69,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.badhabbit.icooked.datalayer.CartItem
 import com.badhabbit.icooked.repository.Cart
+import com.badhabbit.icooked.repository.RecipeBox
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -335,17 +336,6 @@ fun ItemCard(
             MaterialTheme.colorScheme.secondaryContainer
     val tempItem = remember { mutableStateOf(item)}
     var ddExpanded by remember { mutableStateOf(false)}
-    val units = listOf(
-        "",
-        "pt.",
-        "qt.",
-        "gal.",
-        "oz.",
-        "lbs.",
-        "cans",
-        "bags",
-        "boxes"
-    )
 
     Card(
         modifier = modifier
@@ -518,7 +508,7 @@ fun ItemCard(
                                     offset = DpOffset(position.dp,0.dp),
                                     //modifier = Modifier.weight(3f)
                                 ) {
-                                    units.forEach {it ->
+                                    RecipeBox.units.forEach {it ->
                                         DropdownMenuItem(
                                             modifier = Modifier
                                                 .border(

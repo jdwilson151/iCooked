@@ -19,6 +19,17 @@ object RecipeBox {
     private val gson = Gson()
     private val readwriteMutex = Mutex()
     private var recipes = HashMap<String,Recipe>()
+    val units = listOf(
+        "",
+        "pt.",
+        "qt.",
+        "gal.",
+        "oz.",
+        "lbs.",
+        "cans",
+        "bags",
+        "boxes"
+    )
 
     suspend fun updateBox(context: Context) {
         readwriteMutex.withLock{
