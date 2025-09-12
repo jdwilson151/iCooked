@@ -63,7 +63,7 @@ object RecipeBox {
         }
     }
 
-    private suspend fun deleteRecipe(context: Context, recipe: Recipe) {
+    suspend fun deleteRecipe(context: Context, recipe: Recipe) {
         readwriteMutex.withLock {
             try {
                 recipes.remove(recipe.name)

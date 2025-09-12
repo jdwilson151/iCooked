@@ -46,12 +46,15 @@ fun RecipeList(
     val context = LocalContext.current
     val recipeList = remember { mutableStateListOf<Recipe>()}
     val onDeleteRecipe = { recipe: Recipe ->
-        deleteRecipe(context, recipe)
-        fetchList(context, recipeList)
+        CoroutineScope(Dispatchers.Main).launch {
+            RecipeBox.deleteRecipe(context,recipe)
+            RecipeBox.getRecipeList(context,recipeList)
+        }
     }
 
     LaunchedEffect(recipeList) {
-        fetchList(context, recipeList)
+        RecipeBox.getRecipeList(context,recipeList)
+        //fetchList(context, recipeList)
     }
     onTitleChanged("- Recipes")
 
@@ -119,7 +122,7 @@ fun TitleCard(
     }
 }
 
-private fun fetchList(
+/*private fun fetchList(
     context: Context,
     recipeList: SnapshotStateList<Recipe>
 ) {
@@ -154,4 +157,4 @@ private fun deleteRecipe(
             Log.d("Debugging", "deleteRecipe: ${e.message}")
         }
     }
-}
+}*/
