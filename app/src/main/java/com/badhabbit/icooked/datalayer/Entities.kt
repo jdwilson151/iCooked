@@ -1,0 +1,33 @@
+package com.badhabbit.icooked.datalayer
+
+const val extension:String = "rcp_"
+
+data class Recipe(
+    var name: String = "",
+    var filename: String = "$extension$name",
+    var description: String = "",
+    var notes: String = "",
+    var ingredients: MutableList<Ingredient> = arrayListOf(Ingredient("")),
+    var instructions: MutableList<String> = arrayListOf("Step 1?"),
+)
+
+data class Ingredient(
+    var name: String,
+    var qty: String = "",
+    var unit: String = "",
+)
+
+data class CartItem(
+    val id: Int,
+    var itemName: String,
+    var qty: String = "",
+    var unit: String = "",
+    var index: Int = 0,
+    var desc: String = "",
+    var done: Boolean = false
+) {
+
+    override fun toString(): String {
+        return "itemName: $itemName, qty: $qty, unit: $unit"
+    }
+}
