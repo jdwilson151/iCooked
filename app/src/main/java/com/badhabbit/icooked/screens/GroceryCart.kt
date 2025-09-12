@@ -96,12 +96,14 @@ fun GroceryCart(
         item.done = checked
         scope.launch {
             Cart.updateItem(context, item)
+            Cart.getList(itemList)
             //updateList(context, itemListDone, itemListUndone)
         }
     }
     val onDelete: (item: CartItem) -> Unit = {
         scope.launch {
             Cart.deleteItem(context, it)
+            Cart.getList(itemList)
             //updateList(context, itemListDone, itemListUndone)
         }
     }
@@ -116,6 +118,7 @@ fun GroceryCart(
 
     LaunchedEffect(context) {
         Cart.updateCart(context)
+        Cart.getList(itemList)
         //updateList(context, itemListDone, itemListUndone)
     }
     onTitleChanged("- Grocery Cart")
@@ -191,7 +194,7 @@ fun GroceryCart(
                 }
         ) {
             item {
-                if (itemList.filter { !it.done }.isNotEmpty()) {
+                if (itemList.any { !it.done }) {
                     Text(
                         text = "PENDING",
                         modifier = Modifier
@@ -201,7 +204,7 @@ fun GroceryCart(
                         style = MaterialTheme.typography.labelLarge
                     )
                 } else {
-                    if(itemList.filter { it.done }.isEmpty()) {
+                    if(itemList.none { it.done }) {
                         Text(
                             text = "No items to display",
                             modifier = Modifier
@@ -243,7 +246,7 @@ fun GroceryCart(
                 )
             }
             item {
-                if (itemList.filter { it.done }.isNotEmpty()) {
+                if (itemList.any { it.done }) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -262,7 +265,7 @@ fun GroceryCart(
                                 .size(width = 60.dp, height = 40.dp)
                                 .padding(horizontal = 0.dp, vertical = 4.dp)
                                 .clickable(onClick = {
-                                    while (itemList.filter { it.done }.isNotEmpty()) {
+                                    while (itemList.any { it.done }) {
                                         val item = itemList.filter { it.done }[0]
                                         scope.launch {
                                             Cart.deleteItem(context, item)
