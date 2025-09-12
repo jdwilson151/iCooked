@@ -344,17 +344,15 @@ fun RecipeView(
                         ingredients.addAll(recipe.value.ingredients)
                     },
                     onDelete = {
-                        scope.launch {
-                            val tempList =
-                                recipe.value.ingredients.filterIndexed { it, _ -> it != index }
-                            recipe.value =
-                                recipe.value.copy(ingredients = tempList.toMutableList())
-                            scope.launch{
-                                RecipeBox.saveRecipe(context,recipe.value)
-                            }
-                            ingredients.clear()
-                            ingredients.addAll(recipe.value.ingredients)
+                        val tempList =
+                            recipe.value.ingredients.filterIndexed { it, _ -> it != index }
+                        recipe.value =
+                            recipe.value.copy(ingredients = tempList.toMutableList())
+                        scope.launch{
+                            RecipeBox.saveRecipe(context,recipe.value)
                         }
+                        ingredients.clear()
+                        ingredients.addAll(recipe.value.ingredients)
                     },
                     modifier = if(draggingItemIndex == index) {
                         Modifier
@@ -426,17 +424,15 @@ fun RecipeView(
                         }
                     },
                     onDelete = {
-                        scope.launch {
-                            val tempList =
-                                recipe.value.instructions.filterIndexed { it, _ -> it != index }
-                            recipe.value =
-                                recipe.value.copy(instructions = tempList.toMutableList())
-                            scope.launch{
-                                RecipeBox.saveRecipe(context,recipe.value)
-                            }
-                            instructions.clear()
-                            instructions.addAll(recipe.value.instructions)
+                        val tempList =
+                            recipe.value.instructions.filterIndexed { it, _ -> it != index }
+                        recipe.value =
+                            recipe.value.copy(instructions = tempList.toMutableList())
+                        scope.launch{
+                            RecipeBox.saveRecipe(context,recipe.value)
                         }
+                        instructions.clear()
+                        instructions.addAll(recipe.value.instructions)
                     },
                     modifier = if(draggingItemIndex == index) {
                         Modifier
