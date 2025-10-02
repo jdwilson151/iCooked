@@ -18,7 +18,7 @@ object RecipeBox {
     private val gson = Gson()
     private val readwriteMutex = Mutex()
     private var recipes = HashMap<String,Recipe>()
-    val units = listOf(
+    val shopUnits = listOf(
         "",
         "pt.",
         "qt.",
@@ -29,12 +29,25 @@ object RecipeBox {
         "bags",
         "boxes"
     )
+    val recipeUnits = listOf(
+        "",
+        "tsp.",
+        "Tbl.",
+        "Cups",
+        "oz.",
+        "lbs.",
+        "g",
+        "kg,",
+        "gal.",
+        "mL",
+        "L"
+    )
 
     suspend fun updateBox(context: Context) {
         readwriteMutex.withLock{
             val recipesList = context.fileList() ?: arrayOf()
             recipesList.filter { it.startsWith(extension) }.forEach{
-                recipes[it.removePrefix(extension)] = getRecipe(context,it)
+                recipes[it] = loadRecipe(context,it)
             }
         }
     }
@@ -47,12 +60,12 @@ object RecipeBox {
         return returnMap
     }
 
-    private suspend fun updateRecipe(context: Context, recipe: Recipe) {
+    suspend fun updateRecipe(context: Context, recipe: Recipe) {
         readwriteMutex.withLock {
             try {
-                recipes.set(recipe.name, recipe)
+                recipes[recipe.filename] = recipe
                 CoroutineScope(Dispatchers.IO).launch {
-                    FileHandler.writeFile(context,recipe,recipe.filename)
+                    saveRecipe(context,recipe)
                 }
             }catch(e: Exception) {
                 Log.d("debug","Error: ${e.message}")
@@ -63,7 +76,7 @@ object RecipeBox {
     suspend fun deleteRecipe(context: Context, recipe: Recipe) {
         readwriteMutex.withLock {
             try {
-                recipes.remove(recipe.name)
+                recipes.remove(recipe.filename)
                 CoroutineScope(Dispatchers.IO).launch {
                     FileHandler.deleteFile(context,recipe.filename)
                 }
@@ -73,9 +86,10 @@ object RecipeBox {
         }
     }
 
-    fun getRecipeList(context: Context, recipeList: SnapshotStateList<Recipe>) {
+    fun getRecipeList(recipeList: SnapshotStateList<Recipe>) {
         try {
             CoroutineScope(Dispatchers.IO).launch {
+                recipeList.clear()
                 fetchRecipes().values.sortedBy{it.name}.forEach{recipeList.add(it)}
             }
         } catch (e: Exception) {
@@ -83,13 +97,24 @@ object RecipeBox {
         }
     }
 
-    suspend fun getRecipe(context: Context, filename: String): Recipe {
+    suspend fun getRecipe(filename: String): Recipe {
+        readwriteMutex.withLock {
+            try {
+                return recipes[filename] ?: Recipe("")
+            } catch(e: Exception) {
+                Log.d("Debug","Error getRecipe(): ${e.message}")
+                return Recipe("")
+            }
+        }
+    }
+
+    private suspend fun loadRecipe(context: Context, filename: String): Recipe {
         Mutex().withLock {
             val sType = object : TypeToken<Recipe>() {}.type
             lateinit var returnRecipe: Recipe
             withContext(Dispatchers.IO) {
+                val bufferText = FileHandler.readFile(context, filename)
                 try {
-                    val bufferText = FileHandler.readFile(context, filename)
                     returnRecipe = gson.fromJson(bufferText, sType)
                 } catch (e: Exception) {
                     Log.d("Debugging", "getRecipe: ${e.message}")
@@ -117,7 +142,7 @@ object RecipeBox {
             }
         }
     }
-    suspend fun saveRecipe(context: Context, recipe: Recipe) {
+    private suspend fun saveRecipe(context: Context, recipe: Recipe) {
         FileHandler.writeFile(context, recipe, recipe.filename)
     }
 

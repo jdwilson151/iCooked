@@ -2,7 +2,6 @@ package com.badhabbit.icooked.repository
 
 import android.content.Context
 import android.util.Log
-import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.badhabbit.icooked.datalayer.CartItem
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -23,10 +22,11 @@ object Cart {
             try {
                 val sType = object : TypeToken<MutableList<CartItem>>() {}.type
                 val bufferText = FileHandler.readFile(context, filename)
-                var tempCart:MutableList<CartItem> = Gson().fromJson(bufferText, sType)
+                val tempCart:MutableList<CartItem> = Gson().fromJson(bufferText, sType)
 
                 list.clear()
                 list.addAll(tempCart.sortedBy {it.index})
+                Log.d("Debug","Cart updated")
             }catch(e: Exception) {
                 Log.d("debug","Error: ${e.message}")
             }
@@ -34,24 +34,23 @@ object Cart {
     }
 
     private suspend fun saveCart(context: Context) {
-        readwriteMutex.withLock {
-            FileHandler.writeFile(context, list, filename)
-        }
+        FileHandler.writeFile(context, list, filename)
     }
 
-    suspend fun getList(cartList:SnapshotStateList<CartItem>) {
+    suspend fun getList():List<CartItem> {
         readwriteMutex.withLock {
             try {
                 var i = 0
                 list.forEach {
                     it.index = i
+                    Log.d("Debug","${it.index}) ${it.itemName}")
                     i++
                 }
-                cartList.clear()
-                cartList.addAll(list)
+                Log.d("Debug","Loaded Cart list")
             }catch(e: Exception) {
                 Log.d("Debugging","getList: ${e.message}")
             }
+            return list
         }
     }
 
@@ -89,6 +88,24 @@ object Cart {
         }
     }
 
+    suspend fun updateList(context: Context, undoneList: List<CartItem>, doneList: List<CartItem>) {
+        readwriteMutex.withLock {
+            try {
+                list.clear()
+                list.addAll(undoneList)
+                list.addAll(doneList)
+                list.forEach {
+                    it.index = list.indexOf(it)
+                }
+                CoroutineScope(Dispatchers.IO).launch {
+                    saveCart(context)
+                }
+            }catch(e: Exception) {
+                Log.d("Debug","updateList error: ${e.message}")
+            }
+        }
+    }
+
     suspend fun deleteItem(context: Context, item: CartItem) {
         readwriteMutex.withLock {
             try {
@@ -99,6 +116,7 @@ object Cart {
                     it.index = i
                     i++
                 }
+                Log.d("Debug","Removed ${item.itemName} from $index")
                 withContext(Dispatchers.IO) {
                     saveCart(context)
                 }

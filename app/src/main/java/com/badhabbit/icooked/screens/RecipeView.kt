@@ -21,11 +21,13 @@ import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AddCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -56,6 +58,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
@@ -63,6 +66,7 @@ import com.badhabbit.icooked.datalayer.DraggableItem
 import com.badhabbit.icooked.datalayer.Ingredient
 import com.badhabbit.icooked.datalayer.Recipe
 import com.badhabbit.icooked.repository.Cart
+import com.badhabbit.icooked.repository.FileHandler
 import com.badhabbit.icooked.repository.RecipeBox
 import kotlinx.coroutines.launch
 
@@ -83,17 +87,19 @@ fun RecipeView(
     var delta: Float by remember { mutableFloatStateOf(0f) }
     var draggingItem: LazyListItemInfo? by remember { mutableStateOf(null) }
     var draggingItemIndex: Int? by remember { mutableStateOf(null) }
-    val onMoveIngredient = { fromIndex: Int, toIndex: Int ->
-        ingredients.apply { add(toIndex, removeAt(fromIndex)) }
-    }
     val onMoveInstruction = { fromIndex: Int, toIndex: Int ->
         instructions.apply { add(toIndex, removeAt(fromIndex)) }
+        recipe.value.instructions.clear()
+        Log.d("Debug","copy instructions: "+recipe.value.instructions.addAll(instructions))
+        scope.launch {
+            RecipeBox.updateRecipe(context,recipe.value)
+        }
     }
 
     LaunchedEffect(context) {
         scope.launch {
             try {
-                recipe.value = RecipeBox.getRecipe(context, filename)
+                recipe.value = RecipeBox.getRecipe(filename)
                 ingredients.clear()
                 ingredients.addAll(recipe.value.ingredients)
                 instructions.clear()
@@ -152,7 +158,7 @@ fun RecipeView(
 
                             if (targetItem != null) {
                                 val targetIndex = (targetItem.contentType as DraggableItem).index
-                                onMoveIngredient(currentIndex, targetIndex)
+                                onMoveInstruction(currentIndex, targetIndex)
                                 draggingItemIndex = targetIndex
                                 draggingItem = targetItem
                                 delta += currentItem.offset - targetItem.offset
@@ -170,18 +176,39 @@ fun RecipeView(
                 }
         ) {
             item {
-                var editmode = remember { mutableStateOf(false) }
+                val editmode = remember { mutableStateOf(false) }
                 if(!editmode.value) {
-                    Text(
-                        text = recipe.value.name,
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
+                    Row(
                         modifier = Modifier
-                            .padding(top = 4.dp, bottom = 8.dp)
-                            .padding(start = 24.dp)
-                            .clickable { editmode.value = true }
-                    )
+                            .fillMaxWidth()
+                    ) {
+                        Text(
+                            text = recipe.value.name,
+                            style = MaterialTheme.typography.titleLarge,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            modifier = Modifier
+                                .padding(top = 4.dp, bottom = 8.dp)
+                                .padding(start = 24.dp)
+                                .clickable { editmode.value = true }
+                                .weight(5f)
+                        )
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                scope.launch {
+                                    FileHandler.shareString(context, recipe.value.toString())
+                                }
+                            }
+                        ) {
+                            Icon(
+                                Icons.Rounded.Share,
+                                "Share Recipe",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
                 } else {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -194,12 +221,20 @@ fun RecipeView(
                                 recipe.value = recipe.value.copy(name = it)
                             },
                             maxLines = 1,
-                            label = { Text("Name") }
+                            label = { Text("Name") },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                unfocusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                focusedBorderColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                                focusedLabelColor = MaterialTheme.colorScheme.onSurface,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurface
+                            )
                         )
                         IconButton(
                             onClick = {
                                 scope.launch{
-                                    RecipeBox.saveRecipe(context,recipe.value)
+                                    RecipeBox.updateRecipe(context,recipe.value)
                                 }
                                 editmode.value = false
                             }
@@ -224,7 +259,7 @@ fun RecipeView(
                     ),
                     shape = RectangleShape
                 ) {
-                    var editmode = remember { mutableStateOf(false) }
+                    val editmode = remember { mutableStateOf(false) }
                     if(!editmode.value) {
                         Text(
                             text = "About~\n    ${recipe.value.description}",
@@ -249,17 +284,20 @@ fun RecipeView(
                                 },
                                 label = { Text("About") },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    focusedBorderColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimary,
-                                    focusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedBorderColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    cursorColor = MaterialTheme.colorScheme.surface
                                 )
                             )
                             IconButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     scope.launch{
-                                        RecipeBox.saveRecipe(context,recipe.value)
+                                        RecipeBox.updateRecipe(context,recipe.value)
                                     }
                                     editmode.value = false
                                 }
@@ -267,7 +305,7 @@ fun RecipeView(
                                 Icon(
                                     Icons.Filled.Edit,
                                     "Finish Edit",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer)
                             }
                         }
                     }
@@ -306,7 +344,7 @@ fun RecipeView(
                                         ingredients = (recipe.value.ingredients + Ingredient("New")).toMutableList()
                                     )
                                     scope.launch{
-                                        RecipeBox.saveRecipe(context,recipe.value)
+                                        RecipeBox.updateRecipe(context,recipe.value)
                                     }
                                     ingredients.clear()
                                     ingredients.addAll(recipe.value.ingredients)
@@ -318,9 +356,7 @@ fun RecipeView(
                 }
             }
             itemsIndexed(
-                items = ingredients,
-                key = {_,it -> it.hashCode() },
-                contentType = { index, _ -> DraggableItem(index = index) }
+                items = ingredients
             ) { index, ingredient ->
                 IngredientCard(
                     ingredient,
@@ -338,7 +374,7 @@ fun RecipeView(
                                 unit = newIngredient.unit
                             )
                         scope.launch{
-                            RecipeBox.saveRecipe(context,recipe.value)
+                            RecipeBox.updateRecipe(context,recipe.value)
                         }
                         ingredients.clear()
                         ingredients.addAll(recipe.value.ingredients)
@@ -349,19 +385,10 @@ fun RecipeView(
                         recipe.value =
                             recipe.value.copy(ingredients = tempList.toMutableList())
                         scope.launch{
-                            RecipeBox.saveRecipe(context,recipe.value)
+                            RecipeBox.updateRecipe(context,recipe.value)
                         }
                         ingredients.clear()
                         ingredients.addAll(recipe.value.ingredients)
-                    },
-                    modifier = if(draggingItemIndex == index) {
-                        Modifier
-                            .zIndex(1f)
-                            .graphicsLayer {
-                                translationY = delta
-                            }
-                    } else {
-                        Modifier
                     }
                 )
             }
@@ -395,7 +422,7 @@ fun RecipeView(
                             .clickable {
                                 recipe.value = recipe.value.copy(instructions = (recipe.value.instructions + "New").toMutableList())
                                 scope.launch{
-                                    RecipeBox.saveRecipe(context,recipe.value)
+                                    RecipeBox.updateRecipe(context,recipe.value)
                                 }
                                 instructions.clear()
                                 instructions.addAll(recipe.value.instructions)
@@ -406,7 +433,7 @@ fun RecipeView(
             }
             itemsIndexed(
                 items = instructions,
-                key = {_,it -> it.hashCode() },
+                key = {index,it -> (it+index).hashCode() },
                 contentType = { index, _ -> DraggableItem(index = index) }
             ) { index, instruction ->
                 DirectionCard(
@@ -414,12 +441,14 @@ fun RecipeView(
                     instruction,
                     remember { mutableStateOf(false) },
                     onSave = { newInstruction ->
-                        recipe.value.instructions[index] = newInstruction
-                        scope.launch{
-                            RecipeBox.saveRecipe(context,recipe.value)
+                        scope.launch {
+                            recipe.value.instructions[index] = newInstruction
+                            scope.launch{
+                                RecipeBox.updateRecipe(context,recipe.value)
+                            }
+                            instructions.clear()
+                            instructions.addAll(recipe.value.instructions)
                         }
-                        instructions.clear()
-                        instructions.addAll(recipe.value.instructions)
                     },
                     onDelete = {
                         val tempList =
@@ -427,7 +456,7 @@ fun RecipeView(
                         recipe.value =
                             recipe.value.copy(instructions = tempList.toMutableList())
                         scope.launch{
-                            RecipeBox.saveRecipe(context,recipe.value)
+                            RecipeBox.updateRecipe(context,recipe.value)
                         }
                         instructions.clear()
                         instructions.addAll(recipe.value.instructions)
@@ -454,7 +483,7 @@ fun RecipeView(
                     ),
                     shape = RectangleShape
                 ) {
-                    var editmode = remember { mutableStateOf(false) }
+                    val editmode = remember { mutableStateOf(false) }
                     if(!editmode.value) {
                         Text(
                             text = "Notes~\n    ${recipe.value.notes}",
@@ -479,17 +508,20 @@ fun RecipeView(
                                 },
                                 label = { Text("Notes") },
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    focusedBorderColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onPrimary,
-                                    focusedTextColor = MaterialTheme.colorScheme.onPrimary,
+                                    unfocusedBorderColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedBorderColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    unfocusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedTextColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    unfocusedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    focusedLabelColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    cursorColor = MaterialTheme.colorScheme.surface
                                     )
                             )
                             IconButton(
                                 modifier = Modifier.weight(1f),
                                 onClick = {
                                     scope.launch{
-                                        RecipeBox.saveRecipe(context,recipe.value)
+                                        RecipeBox.updateRecipe(context,recipe.value)
                                     }
                                     editmode.value = false
                                 }
@@ -497,7 +529,7 @@ fun RecipeView(
                                 Icon(
                                     Icons.Filled.Edit,
                                     "Finish Edit",
-                                    tint = MaterialTheme.colorScheme.onPrimaryContainer
+                                    tint = MaterialTheme.colorScheme.onSecondaryContainer
                                 )
                             }
                         }
@@ -518,8 +550,8 @@ fun DirectionCard(
     modifier: Modifier = Modifier
 ) {
     val tempDirection = remember { mutableStateOf(direction) }
-    val boxColor = MaterialTheme.colorScheme.tertiaryContainer
-    val textColor = MaterialTheme.colorScheme.onTertiaryContainer
+    val boxColor = MaterialTheme.colorScheme.tertiary
+    val textColor = MaterialTheme.colorScheme.onTertiary
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -601,13 +633,14 @@ fun IngredientCard(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val boxColor = MaterialTheme.colorScheme.tertiaryContainer
-    val textColor = MaterialTheme.colorScheme.onTertiaryContainer
+    val boxColor = MaterialTheme.colorScheme.tertiary
+    val textColor = MaterialTheme.colorScheme.onTertiary
     val tempIngredient = remember { mutableStateOf(ingredient) }
     var ddExpanded by remember { mutableStateOf(false)}
 
     Card(
         modifier = modifier
+            .clickable { editMode.value = true }
             .fillMaxWidth()
             .padding(horizontal = 5.dp, vertical = 2.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface),
@@ -627,13 +660,12 @@ fun IngredientCard(
                     tint = textColor
                 )
                 Text(
-                    text = "${ingredient.name}",
+                    text = ingredient.name,
                     modifier = Modifier
-                        .clickable { editMode.value = true }
                 )
                 Spacer(modifier = Modifier.weight(4f))
-                Text("${ingredient.qty}")
-                Text("${ingredient.unit}")
+                Text(ingredient.qty)
+                Text(ingredient.unit)
                 Spacer(modifier = Modifier.weight(1f))
                 Icon(
                     Icons.Filled.Delete,
@@ -662,6 +694,7 @@ fun IngredientCard(
                 Spacer(modifier = Modifier.weight(1f))
                 OutlinedTextField(
                     value = tempIngredient.value.qty,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     onValueChange = {
                         tempIngredient.value = tempIngredient.value.copy(qty = it)
                     },
@@ -693,7 +726,8 @@ fun IngredientCard(
                             )
                             .clickable(
                                 onClick = { ddExpanded = true }
-                            )
+                            ),
+                        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.secondary)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -720,10 +754,10 @@ fun IngredientCard(
                     onDismissRequest = {ddExpanded = !ddExpanded},
                     offset = DpOffset(position.dp,0.dp)
                 ) {
-                    RecipeBox.units.forEach {it ->
+                    RecipeBox.recipeUnits.forEach {
                         DropdownMenuItem(
                             modifier = Modifier
-                                .border(2.dp, MaterialTheme.colorScheme.onPrimaryContainer)
+                                .border(2.dp, MaterialTheme.colorScheme.onPrimary)
                                 .background(MaterialTheme.colorScheme.primaryContainer),
                             text = {
                                 Row(
@@ -732,7 +766,7 @@ fun IngredientCard(
                                 ) {
                                     Text(
                                         text = it,
-                                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        color = MaterialTheme.colorScheme.onPrimary,
                                         style = MaterialTheme.typography.labelLarge
                                     )
                                 }

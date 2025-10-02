@@ -45,15 +45,15 @@ fun RecipeList(
     val onDeleteRecipe: (Recipe) -> Unit = { recipe: Recipe ->
         scope.launch {
             RecipeBox.deleteRecipe(context,recipe)
-            RecipeBox.getRecipeList(context,recipeList)
+            RecipeBox.getRecipeList(recipeList)
         }
     }
 
     LaunchedEffect(recipeList) {
         scope.launch {
+            recipeList.clear()
             RecipeBox.updateBox(context)
-            RecipeBox.getRecipeList(context, recipeList)
-            //fetchList(context, recipeList)
+            RecipeBox.getRecipeList(recipeList)
         }
     }
     onTitleChanged("- Recipes")
@@ -97,7 +97,7 @@ fun TitleCard(
             MaterialTheme.colorScheme.primaryContainer
         ),
         shape = RoundedCornerShape(15.dp),
-        border = BorderStroke(3.dp, MaterialTheme.colorScheme.onPrimary)
+        border = BorderStroke(3.dp, MaterialTheme.colorScheme.onPrimaryContainer)
     ) {
         Row(
             modifier = Modifier
@@ -110,7 +110,7 @@ fun TitleCard(
                 text = recipe.name,
                 modifier = Modifier,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onPrimaryContainer
+                color = MaterialTheme.colorScheme.onPrimary
             )
             Icon(
                 Icons.Filled.Delete,
@@ -121,40 +121,3 @@ fun TitleCard(
         }
     }
 }
-
-/*private fun fetchList(
-    context: Context,
-    recipeList: SnapshotStateList<Recipe>
-) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            val tempList = RecipeBox.getRecipeList(context).sortedBy { it.lowercase() }
-            recipeList.clear()
-            var unsortedList = mutableListOf<Recipe>()
-            tempList.forEach {filename ->
-                val file = RecipeBox.getRecipe(context,filename)
-                unsortedList.add(file)
-            }
-            unsortedList
-                .sortedBy { it.name.lowercase() }
-                .forEach {recipe ->
-                    recipeList.add(recipe)
-                }
-        } catch (e: Exception) {
-            Log.d("Debugging", "fetchList: ${e.message}")
-        }
-    }
-}
-
-private fun deleteRecipe(
-    context: Context,
-    recipe: Recipe
-) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            RecipeBox.deleteRecipe(context, recipe)
-        } catch (e: Exception) {
-            Log.d("Debugging", "deleteRecipe: ${e.message}")
-        }
-    }
-}*/

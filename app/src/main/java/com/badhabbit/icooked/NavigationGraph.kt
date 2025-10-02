@@ -125,7 +125,7 @@ fun AppScaffold() {
                     if(currentView.value == Screen.Cart.route) {
                         IconButton(
                             onClick = {
-                                CoroutineScope(Dispatchers.IO).launch {
+                                CoroutineScope(Dispatchers.Main).launch {
                                     Cart.newItem(context, "New Item")
                                 }
                                 navController.navigate(Screen.Cart.route)
@@ -165,7 +165,7 @@ fun AppScaffold() {
                 }
             )
         }
-    ) { it ->
+    ) {
         NavigationGraph(it, navController) {title ->
             appTitle.value = "iCooked $title"
         }

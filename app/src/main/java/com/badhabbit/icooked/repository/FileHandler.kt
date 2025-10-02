@@ -1,7 +1,9 @@
 package com.badhabbit.icooked.repository
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
+import androidx.core.content.ContextCompat
 import com.google.gson.Gson
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -46,6 +48,16 @@ object FileHandler {
     suspend fun deleteFile(context: Context,filename: String) {
         Mutex().withLock {
             context.deleteFile(filename)
+        }
+    }
+
+    suspend fun shareString(context: Context, string: String) {
+        Mutex().withLock {
+            val shareRecipe = Intent(Intent.ACTION_SEND).apply {
+                putExtra(Intent.EXTRA_TEXT,string)
+                type = "text/plain"
+            }
+            ContextCompat.startActivity(context, Intent.createChooser(shareRecipe, null), null)
         }
     }
 }

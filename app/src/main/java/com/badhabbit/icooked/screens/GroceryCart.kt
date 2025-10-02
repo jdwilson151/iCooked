@@ -78,40 +78,30 @@ fun GroceryCart(
     onTitleChanged: (String) -> Unit
 ) {
     val context = LocalContext.current
-    val itemList = remember { mutableStateListOf<CartItem>()}
+    val itemListDone = remember { mutableStateListOf<CartItem>()}
+    val itemListUndone = remember { mutableStateListOf<CartItem>()}
     val scope = rememberCoroutineScope()
-
-    val onSave:(CartItem) -> Unit = { newItem: CartItem ->
-        scope.launch {
-            Cart.updateItem(context, newItem)
-            Cart.getList(itemList)
-        }
-    }
-    val onCheckbox: (Boolean, CartItem) -> Unit = { checked: Boolean, item: CartItem ->
-        item.done = checked
-        scope.launch {
-            Cart.updateItem(context, item)
-            Cart.getList(itemList)
-        }
-    }
-    val onDelete: (item: CartItem) -> Unit = {
-        scope.launch {
-            Cart.deleteItem(context, it)
-            Cart.getList(itemList)
-        }
-    }
 
     val listState = rememberLazyListState()
     var delta: Float by remember { mutableFloatStateOf(0f) }
     var draggingItem: LazyListItemInfo? by remember { mutableStateOf(null)}
     var draggingItemIndex: Int? by remember { mutableStateOf(null)}
     val onMoveUndone = { fromIndex: Int, toIndex: Int ->
-        itemList.apply { add(toIndex, removeAt(fromIndex)) }
+        itemListUndone.apply { add(toIndex, removeAt(fromIndex)) }
+        Log.d("Debug","itemList swapped $fromIndex for $toIndex")
+        scope.launch {
+            Cart.updateList(context, itemListUndone, itemListDone)
+        }
     }
 
     LaunchedEffect(context) {
+        Log.d("Debug","Launching GroceryCart.kt")
         Cart.updateCart(context)
-        Cart.getList(itemList)
+        val tempList = Cart.getList()
+        itemListUndone.clear()
+        itemListUndone.addAll(tempList.filter {!it.done})
+        itemListDone.clear()
+        itemListDone.addAll(tempList.filter {it.done})
     }
     onTitleChanged("- Grocery Cart")
 
@@ -123,6 +113,7 @@ fun GroceryCart(
         LazyColumn(
             state = listState,
             modifier = Modifier
+                .fillMaxSize()
                 .padding(horizontal = 5.dp)
                 .pointerInput(key1 = listState) {
                     detectDragGesturesAfterLongPress(
@@ -169,14 +160,6 @@ fun GroceryCart(
                         onDragEnd = {
                             draggingItemIndex = null
                             delta = 0f
-                            scope.launch {
-                                itemList.filter { !it.done }.forEach { item: CartItem ->
-                                    val index =
-                                        itemList.indexOf(itemList.first { it.id == item.id })
-                                    val newitem = item.copy(index = index)
-                                    Cart.updateItem(context, newitem)
-                                }
-                            }
                         },
                         onDragCancel = {
                             draggingItemIndex = null
@@ -186,7 +169,7 @@ fun GroceryCart(
                 }
         ) {
             item {
-                if (itemList.any { !it.done }) {
+                if (itemListUndone.isNotEmpty()) {
                     Text(
                         text = "PENDING",
                         modifier = Modifier
@@ -196,7 +179,7 @@ fun GroceryCart(
                         style = MaterialTheme.typography.labelLarge
                     )
                 } else {
-                    if(itemList.none { it.done }) {
+                    if(itemListDone.isEmpty()) {
                         Text(
                             text = "No items to display",
                             modifier = Modifier
@@ -209,20 +192,38 @@ fun GroceryCart(
                 }
             }
             itemsIndexed(
-                items = itemList.filter { !it.done },
+                items = itemListUndone,
                 key = {_,it -> it.hashCode()},
                 contentType = { index, _ -> DraggableItem(index = index)}
-            ) { index: Int, item: CartItem ->
+            ) { index, item ->
                 ItemCard(
                     item = item,
                     show = remember { mutableStateOf(false)},
                     editMode = remember { mutableStateOf(false)},
-                    onSave = onSave,
-                    onCheckbox = {checked:Boolean ->
-                        itemList[index] = item.copy(done = checked)
-                        onCheckbox(checked,item)
+                    onSave = {newItem ->
+                        itemListUndone[index] = newItem
+                        scope.launch {
+                            Cart.updateItem(context,itemListUndone[index])
+                        }
                     },
-                    onDelete = {onDelete(item)},
+                    onCheckbox = {checked:Boolean ->
+                        itemListUndone[index] = item.copy(done = checked)
+                        itemListDone.add(itemListUndone.removeAt(index))
+                        scope.launch {
+                            Cart.updateItem(context,itemListDone.last())
+                            val tempList = Cart.getList()
+                            itemListUndone.clear()
+                            itemListUndone.addAll(tempList.filter {!it.done})
+                            itemListDone.clear()
+                            itemListDone.addAll(tempList.filter {it.done})
+                        }
+                    },
+                    onDelete = {deadItem ->
+                        itemListUndone.remove(deadItem)
+                        scope.launch {
+                            Cart.deleteItem(context, deadItem)
+                        }
+                    },
                     modifier = if(draggingItemIndex == index) {
                         Modifier
                             .zIndex(1f)
@@ -235,7 +236,7 @@ fun GroceryCart(
                 )
             }
             item {
-                if (itemList.any { it.done }) {
+                if (itemListDone.isNotEmpty()) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(),
@@ -254,12 +255,12 @@ fun GroceryCart(
                                 .size(width = 60.dp, height = 40.dp)
                                 .padding(horizontal = 0.dp, vertical = 4.dp)
                                 .clickable(onClick = {
-                                    while (itemList.any { it.done }) {
-                                        val item = itemList.filter { it.done }[0]
+                                    while (itemListDone.isNotEmpty()) {
+                                        val item = itemListDone[0]
                                         scope.launch {
                                             Cart.deleteItem(context, item)
                                         }
-                                        itemList.remove(item)
+                                        itemListDone.remove(item)
                                     }
                                 }),
                             colors = CardDefaults.cardColors(
@@ -281,19 +282,36 @@ fun GroceryCart(
                 }
             }
             itemsIndexed(
-                itemList.filter { it.done },
-                {_,it -> it.hashCode()}
-            ) { index: Int, item: CartItem ->
+                itemListDone
+            ) { index, item ->
                 ItemCard(
                     item = item,
                     show = remember { mutableStateOf(false)},
                     editMode = remember { mutableStateOf(false)},
-                    onSave = onSave,
-                    onCheckbox = {checked:Boolean ->
-                        itemList[index] = item.copy(done = checked)
-                        onCheckbox(checked, item)
+                    onSave = {newItem ->
+                        itemListDone[index] = newItem
+                        scope.launch {
+                            Cart.updateItem(context,itemListDone[index])
+                        }
                     },
-                    onDelete = {onDelete(item)}
+                    onCheckbox = {checked:Boolean ->
+                        itemListDone[index] = item.copy(done = checked)
+                        itemListUndone.add(itemListDone.removeAt(index))
+                        scope.launch {
+                            Cart.updateItem(context,itemListUndone.last())
+                            val tempList = Cart.getList()
+                            itemListUndone.clear()
+                            itemListUndone.addAll(tempList.filter {!it.done})
+                            itemListDone.clear()
+                            itemListDone.addAll(tempList.filter {it.done})
+                        }
+                    },
+                    onDelete = {deadItem ->
+                        itemListDone.remove(deadItem)
+                        scope.launch {
+                            Cart.deleteItem(context, deadItem)
+                        }
+                    },
                 )
             }
         }
@@ -307,7 +325,7 @@ fun ItemCard(
     editMode: MutableState<Boolean>,
     onSave: (CartItem) -> Unit,
     onCheckbox: (Boolean) -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (CartItem) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val iconSize = 20.dp
@@ -499,12 +517,12 @@ fun ItemCard(
                                     onDismissRequest = {ddExpanded = !ddExpanded},
                                     offset = DpOffset(position.dp,0.dp)
                                 ) {
-                                    RecipeBox.units.forEach {it ->
+                                    RecipeBox.shopUnits.forEach {
                                         DropdownMenuItem(
                                             modifier = Modifier
                                                 .border(
                                                     2.dp,
-                                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                                    MaterialTheme.colorScheme.onPrimary
                                                 )
                                                 .background(MaterialTheme.colorScheme.primaryContainer),
                                             text = {
@@ -514,7 +532,7 @@ fun ItemCard(
                                                 ) {
                                                     Text(
                                                         text = it,
-                                                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                                                        color = MaterialTheme.colorScheme.onPrimary
                                                     )
                                                 }
                                             },
@@ -599,7 +617,7 @@ fun ItemCard(
                 if (show.value) {
                     Spacer(Modifier.height(12.dp))
                     IconButton(
-                        onClick = { onDelete() },
+                        onClick = { onDelete(item) },
                         modifier = Modifier
                             .height(iconSize)
                     ) {
@@ -609,7 +627,6 @@ fun ItemCard(
                                 .size(iconSize)
                                 .padding(0.dp),
                             contentDescription = "Delete",
-                            //tint = Color.Black
                         )
                     }
                 }
@@ -617,21 +634,3 @@ fun ItemCard(
         }
     }
 }
-
-/*private fun updateList(
-    context: Context,
-    itemListDone: SnapshotStateList<CartItem>,
-    itemListUndone: SnapshotStateList<CartItem>
-) {
-    CoroutineScope(Dispatchers.Main).launch {
-        try {
-            val fetchedList = Cart.getList(context)
-            itemListUndone.clear()
-            itemListUndone.addAll(fetchedList.filter { !it.done })
-            itemListDone.clear()
-            itemListDone.addAll(fetchedList.filter { it.done })
-        }catch(e: Exception) {
-            Log.d("Debugging","updateList: ${e.message}")
-        }
-    }
-}*/
